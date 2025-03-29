@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Comparison System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        #camera, #canvas {
+            max-width: 100%;
+            margin: 20px 0;
+        }
+        .nav-buttons {
+            margin-top: 20px;
+        }
+        .nav-buttons button {
+            margin: 0 10px;
+            padding: 10px 20px;
+        }
+
+        #uncheckedPeopleList {
+            text-align: left;
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Face Comparison System</h1>
+
+    <div class="nav-buttons">
+        <button onclick="showSection('capture')">Capture and Compare</button>
+        <button onclick="showSection('upload')">Upload Reference Image</button>
+    </div>
+
+    <div id="captureSection" class="section" style="display:block;">
+        <h2>Webcam Face Comparison</h2>
+        
+        <form id="comparisonForm">
+            <label for="first_name">First Name:</label>
+            <input type="text" id="first_name" name="first_name" required><br><br>
+            
+            <label for="last_name">Last Name:</label>
+            <input type="text" id="last_name" name="last_name" required><br><br>
+        </form>
+
+        <div id="cameraSection">
+            <video id="camera" width="640" height="480" autoplay></video>
+            <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+            <button id="captureBtn">Capture Image</button>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <div id="uploadSection" class="section" style="display:none;">
+        <h2>Upload Reference Image</h2>
+        <h3>Upload the image with the student's first AND last name! (ex:
+            "bryancho.jpg")
+        </h3>
+        <h3>Only supports jpg and jpeg files for now!</h3><br>
+        <form id="referenceUploadForm" enctype="multipart/form-data">
+            <label for="ref_first_name">First Name:</label>
+            <input type="text" id="ref_first_name" name="first_name" required><br><br>
+            
+            <label for="ref_last_name">Last Name:</label>
+            <input type="text" id="ref_last_name" name="last_name" required><br><br>
+            
+            <label for="reference_image">Choose Reference Image:</label>
+            <input type="file" id="reference_image" name="image" accept="image/jpeg, image/jpg" required><br><br>
+            
+            <button type="button" onclick="uploadReferenceImage()">Upload Reference Image</button>
+        </form>
+        <br>
+        <div id="uploadResult"></div><br>
+        
+        <button id="doneUploadBtn" onclick="showUncheckedPeople()">Done Uploading</button>
+        
+        <div id="uncheckedPeopleList" style="display:none;">
+            <h3>Unchecked People</h3>
+            <ul id="uncheckedList"></ul>
+        </div>
+        <br><br>
+
+        <div id="removeStudentSection" style="display:none;">
+            <h2>Remove Student</h2>
+            <form id="removeStudentForm">
+                <label for="remove_first_name">First Name:</label>
+                <input type="text" id="remove_first_name" name="first_name" required><br><br>
+                
+                <label for="remove_last_name">Last Name:</label>
+                <input type="text" id="remove_last_name" name="last_name" required><br><br>
+                
+                <button type="button" onclick="removeStudent()">Remove Student</button>
+            </form>
+            <div id="removeStudentResult"></div>
+        </div>
+    </div>
+
+    
+
+
+</body>
+</html>
+
+<script>
+    // Show unchecked people
+    function showUncheckedPeople() {
+        const uncheckedPeopleList = document.getElementById('uncheckedPeopleList');
+        const uncheckedList = document.getElementById('uncheckedList');
+
+        fetch('/get_check_ins')
+        .then(response => response.json())
+        .then(data => {
+            // Clear previous list
+            uncheckedList.innerHTML = '';
+
+            // Filter unchecked people
+            const uncheckedPeople = data.filter(person => person.checked === 0);
+
+            if (uncheckedPeople.length > 0) {
+                uncheckedPeople.forEach(person => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = person.name;
+                    uncheckedList.appendChild(listItem);
+                });
+            } else {
+                const listItem = document.createElement('li');
+                listItem.textContent = 'All people have been checked in!';
+                uncheckedList.appendChild(listItem);
+            }
+
+            // Show the unchecked people list
+            uncheckedPeopleList.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error fetching check-ins:', error);
+            const listItem = document.createElement('li');
+            listItem.textContent = 'Error fetching unchecked people';
+            uncheckedList.appendChild(listItem);
+            uncheckedPeopleList.style.display = 'block';
+        });
+    }
+
+    function removeStudent() {
+    const firstName = document.getElementById('remove_first_name').value;
+    const lastName = document.getElementById('remove_last_name').value;
+    const removeStudentResultDiv = document.getElementById('removeStudentResult');
+
+    if (!firstName || !lastName) {
+        alert('Please enter first and last name');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('first_name', firstName);
+    formData.append('last_name', lastName);
+
+    fetch('/remove_student', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            removeStudentResultDiv.innerHTML = `<p style="color: green;">${data.message}</p>`;
+            // Clear input fields after successful removal
+            document.getElementById('remove_first_name').value = '';
+            document.getElementById('remove_last_name').value = '';
+        } else {
+            removeStudentResultDiv.innerHTML = `<p style="color: red;">${data.message}</p>`;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        removeStudentResultDiv.innerHTML = '<p style="color: red;">An error occurred while removing the student.</p>';
+    });
+}
+
+    // Modify the existing showSection function to handle the new section
+    function showSection(section) {
+        const captureSection = document.getElementById('captureSection');
+        const uploadSection = document.getElementById('uploadSection');
+        const removeStudentSection = document.getElementById('removeStudentSection');
+        
+        // Hide all sections first
+        captureSection.style.display = 'none';
+        uploadSection.style.display = 'none';
+
+        removeStudentSection.style.display = 'block';
+        
+        // Show the selected section
+        if (section === 'capture') {
+            captureSection.style.display = 'block';
+        } else if (section === 'upload') {
+            uploadSection.style.display = 'block';
+        } 
+
+    }
+
+        const video = document.getElementById('camera');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const resultDiv = document.getElementById('result');
+
+    // Access webcam
+    async function setupCamera() {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+    }
+
+    // Capture image from webcam
+    function captureImage() {
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+        // Convert canvas to file
+        canvas.toBlob(uploadImage, 'image/jpeg');
+    }
+
+    // Upload captured image
+    function uploadImage(blob) {
+        const firstName = document.getElementById('first_name').value;
+        const lastName = document.getElementById('last_name').value;
+
+        if (!firstName || !lastName) {
+            alert('Please enter first and last name');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', blob, 'captured_image.jpg');
+        formData.append('first_name', firstName);
+        formData.append('last_name', lastName);
+
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Update the result div with the comparison results
+            resultDiv.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultDiv.innerHTML = 'An error occurred during upload.';
+        });
+    }
+
+    // Upload reference image
+    function uploadReferenceImage() {
+        const firstName = document.getElementById('ref_first_name').value;
+        const lastName = document.getElementById('ref_last_name').value;
+        const imageFile = document.getElementById('reference_image').files[0];
+        const uploadResultDiv = document.getElementById('uploadResult');
+
+        if (!firstName || !lastName || !imageFile) {
+            alert('Please fill in all fields');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        formData.append('first_name', firstName);
+        formData.append('last_name', lastName);
+
+        fetch('/upload_reference', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                uploadResultDiv.innerHTML = `<p style="color: green;">${data.message}</p>`;
+            } else {
+                uploadResultDiv.innerHTML = `<p style="color: red;">${data.message}</p>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            uploadResultDiv.innerHTML = '<p style="color: red;">An error occurred during upload.</p>';
+        });
+    }
+
+    // Event listeners
+    captureBtn.addEventListener('click', captureImage);
+
+    // Initialize camera on page load
+    setupCamera().catch(err => {
+        console.error('Error accessing webcam:', err);
+        alert('Could not access webcam. Please check permissions.');
+    });
+</script>
