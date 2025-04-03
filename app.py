@@ -27,7 +27,6 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# API credentials (IMPORTANT: Replace with your actual credentials)
 API_KEY = "2fewjHUCav3AAH7CapRbbzH08rVTYM5r"
 API_SECRET = "PziGAoFKlZUG2NdAd67tE9blEaBAVtPE"
 
@@ -42,7 +41,6 @@ def clear_image_directory(directory='images'):
         directory (str, optional): Path to the image directory. Defaults to 'images'.
     """
     try:
-        # Check if directory exists
         if os.path.exists(directory):
             # Remove all files in the directory
             for filename in os.listdir(directory):
@@ -57,7 +55,6 @@ def clear_image_directory(directory='images'):
     except Exception as e:
         print(f"Error clearing image directory: {e}")
 
-# Add this to your existing code, potentially in the __main__ block or as an atexit handler
 atexit.register(clear_image_directory)
 
 def clear_check_in_records():
